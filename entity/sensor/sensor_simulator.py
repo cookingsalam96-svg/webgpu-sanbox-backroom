@@ -1,4 +1,4 @@
-"""Deterministic simulated torsional observation adapter. Never hardware data."""
+"""Illustrative torsion signal adapter; value is deterministic for inputs, timestamp is call-time."""
 import math
 from datetime import datetime, timezone
 from entity.sensor.sensor_interface import normalize_observation

@@ -1,5 +1,4 @@
 """HARDAM V1.1 orchestration boundary: Dreamer -> Critic -> memory/action/output."""
-from entity.evidence import EvidenceClass
 from entity.attention.attention_engine import rank_observations
 from entity.reasoning.reasoning_engine import dreamer_propose, critic_review
 from entity.memory.memory_manager import MemoryManager
@@ -32,8 +31,11 @@ class EntityRuntime:
             output_actions.append({"action":name,"authorized":authorized,"reason":result["status"]})
         memory_result = {"write_requested":bool(remember),"write_verified":False,"record_id":None}
         if remember and critic["passed"] and ordered:
+            # Preserve E5 only if every source is simulated; mixed records are hypotheses (E4).
+            mem_class = "E5" if all(o.data_kind == "simulation" for o in ordered) else "E4"
+            provenance = [o.provenance for o in ordered if isinstance(o.provenance, str) and o.provenance.strip()]
             try:
-                record = self.memory.append("decision", proposal.assessment, [o.source for o in ordered], evidence_class="E4", provenance=[o.provenance for o in ordered if o.provenance])
+                record = self.memory.append("decision", proposal.assessment, [o.source for o in ordered], evidence_class=mem_class, provenance=provenance)
                 memory_result = {"write_requested":True,"write_verified":True,"record_id":record["id"]}
             except (ValueError, OSError): status = "DEGRADED"
         result = {"entity_id":"hardam_entity","status":status,"observation":output_observations[:20],"assessment":(proposal.assessment if critic["passed"] else critic["reason"])[:4000],"confidence":float(max(0.0,min(1.0,proposal.confidence if critic["passed"] else 0.0))),"uncertainties":list(proposal.uncertainties[:10]),"actions":output_actions,"memory":memory_result,"validation":{"schema_valid":False,"critic_passed":bool(critic["passed"]),"source_traceable":all(bool(o.provenance) for o in ordered)}}

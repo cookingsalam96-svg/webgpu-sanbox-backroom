@@ -1,4 +1,4 @@
-"""Append-only traceable memory with optional JSONL persistence and reload."""
+"""Append-only traceable memory with optional JSONL persistence and legacy migration."""
 import json
 from datetime import datetime, timezone
 from pathlib import Path
@@ -16,14 +16,22 @@ class MemoryManager:
         if self.path and self.path.exists():
             with self.path.open(encoding="utf-8") as f:
                 for line_number, line in enumerate(f, 1):
-                    if not line.strip():
-                        continue
+                    if not line.strip(): continue
                     try:
                         row = json.loads(line)
+                        self._migrate_legacy_record(row)
                         self._validate_record(row)
                         self._records.append(row)
                     except (ValueError, TypeError, json.JSONDecodeError) as exc:
                         raise ValueError(f"invalid memory record at line {line_number}: {exc}") from exc
+
+    @staticmethod
+    def _migrate_legacy_record(row):
+        if not isinstance(row, dict): raise ValueError("record must be an object")
+        # Legacy V1 had source_ids but no provenance/evidence labels. Preserve it as explicitly unverified.
+        row.setdefault("evidence_class", "E4")
+        row.setdefault("provenance", ["legacy-record:provenance-not-recorded"])
+        row.setdefault("validated", False)
 
     @staticmethod
     def _validate_record(row):
@@ -58,5 +66,4 @@ class MemoryManager:
         return row.copy()
 
     def list(self):
-        with self._lock:
-            return [row.copy() for row in self._records]
+        with self._lock: return [row.copy() for row in self._records]

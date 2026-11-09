@@ -1,11 +1,14 @@
 """Validated input boundary for real or simulated sensor adapters."""
 from dataclasses import dataclass
 from datetime import datetime
+import re
 from typing import Any, Optional
-from entity.evidence import validate_evidence_class
+from entity.evidence import EvidenceClass, validate_evidence_class
 
 DATA_KINDS = {"hardware", "simulation", "user_supplied", "derived"}
 QUALITIES = {"valid", "degraded", "missing", "simulated", "unknown"}
+# Page-located citation shape is a provenance-format check, not proof the cited source supports the claim.
+E1_CITATION = re.compile(r"^[A-Za-z0-9._/-]+#page=[1-9][0-9]*(?:#(?:figure|table|equation)=[A-Za-z0-9._-]+)?$")
 
 @dataclass(frozen=True)
 class Observation:
@@ -49,8 +52,11 @@ def normalize_observation(data):
     provenance = data["provenance"]
     if provenance is not None and (not isinstance(provenance, str) or len(provenance) > 512):
         raise ValueError("provenance must be null or a string up to 512 characters")
-    if data["data_kind"] == "hardware" and evidence is EvidenceClass.E1 and not provenance:
-        raise ValueError("E1 experimental evidence requires a source provenance reference")
+    if evidence is EvidenceClass.E1:
+        if data["data_kind"] != "hardware":
+            raise ValueError("E1 is reserved for source-backed experimental evidence")
+        if not provenance or not E1_CITATION.fullmatch(provenance):
+            raise ValueError("E1 requires a page-located source citation such as 'paper-id#page=4'; format validation is not source verification")
     unit = data.get("unit")
     if unit is not None and (not isinstance(unit, str) or len(unit) > 32):
         raise ValueError("unit must be null or a string up to 32 characters")
