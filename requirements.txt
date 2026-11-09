@@ -1,2 +1,3 @@
+# HARDAM entity implementation dependencies. Core entity contracts use only Python stdlib.
 pytest>=8.0
 python-dotenv>=1.0

@@ -1,0 +1,96 @@
+schema:
+  name: HARDAM_ENTITY_FALLBACK
+  version: 1.0.0
+  status: FALLBACK
+  purpose: >-
+    Define a bounded, auditable, replaceable entity architecture while exact source
+    documents and their page-level citations are being verified.
+  design_principles:
+    - explicit_interfaces
+    - evidence_based_reasoning
+    - bounded_outputs
+    - append_only_memory
+    - fail_closed_actions
+    - replaceable_components
+    - provenance_tracking
+  source:
+    title: Nanoscale Torsional Optomechanics
+    authors: [P.H. Kim, C. Doolin, B.D. Hauer, A.J.R. MacDonald, M.R. Freeman, P.E. Barclay, J.P. Davis]
+    arxiv: 1210.1852v2
+    publication_context: User-supplied reference; bibliographic details and reported values require source-file verification.
+    evidence_type: EXPERIMENTAL_RESEARCH
+    mapping_status: USER_SUPPLIED_SUMMARY_NOT_INDEPENDENTLY_VERIFIED
+    limitation: >-
+      This research describes physical optomechanical transduction, not an AI
+      architecture. Mappings below are software design analogies, not claims made
+      by the paper. Reported experimental values are reference metadata only and
+      are never treated as measurements by this software.
+
+entity:
+  identity:
+    id: hardam_entity
+    architecture: DUAL_BRAIN_MODULAR
+    operating_mode: BOUNDED_AUTONOMOUS
+    fallback_enabled: true
+  layers:
+    sensor:
+      responsibility: Collect and normalize observations.
+      reference_model: [optical_resonance, evanescent_coupling, photodiode_ac_dc, mechanical_resonance, lock_in_measurement]
+      inputs: [optical_measurements, audio_measurements, visual_observations, environmental_events, internal_system_metrics]
+      output_fields: [observation, timestamp, source, confidence, measurement_quality, provenance, data_kind]
+      constraints: [never_invent_measurements, distinguish_missing_from_zero, preserve_original_units, identify_simulated_data, identify_hardware_data]
+    attention:
+      responsibility: Select relevant observations with an explainable priority score.
+      reference_model:
+        optical_resonance_slope: "Analogy: prioritize a high-sensitivity observation; physical resonance slope is not AI attention."
+        signal_quality: true
+        resonance_selection: true
+      priorities: [safety, explicit_user_instruction, task_relevance, evidence_quality, temporal_relevance]
+      output_fields: [selected_observations, priority_scores, rejected_observations, selection_reason]
+      constraints: [no_hidden_priority_changes, preserve_source_references, no_unverified_signal_escalation]
+    reasoning:
+      responsibility: Interpret observations through two isolated roles.
+      brain_a:
+        id: dreamer
+        role: Primary reasoning; interpret, plan, explain, propose.
+      brain_b:
+        id: critic
+        role: Independent critic; verify provenance, detect contradictions, assess confidence, reject unsupported claims.
+      reference_model: [fem_mode_identification, resonance_analysis, thermomechanical_calibration, coupled_mode_interpretation]
+      rules: [separate_fact_from_inference, retain_uncertainty, require_evidence_for_claims, identify_model_assumptions, request_missing_information]
+      output_fields: [assessment, supporting_evidence, confidence, uncertainty, critic_result]
+    memory:
+      responsibility: Maintain traceable knowledge.
+      storage: {mode: APPEND_ONLY, preserve_history: true, preserve_provenance: true, support_versioning: true}
+      record_types: [observation, decision, verified_fact, hypothesis, correction, rejected_claim]
+      constraints: [no_silent_overwrites, no_hypothesis_promotion_without_validation, preserve_original_values, distinguish_historical_from_current]
+    action:
+      responsibility: Execute only validated and authorized operations.
+      permitted_actions: [respond_to_user, store_validated_memory, run_local_analysis, request_clarification, generate_report]
+      restricted_actions: [modify_system_configuration_without_approval, execute_unreviewed_commands, access_unapproved_resources, perform_unverified_external_actions, represent_simulation_as_hardware_measurement]
+      execution: {require_validation: true, require_authorization: true, log_every_action: true, support_rollback: false}
+  behavioral_constraints:
+    honesty: [never_claim_unavailable_capabilities, never_fabricate_source_evidence, never_claim_hardware_access_without_hardware, identify_fallback_operation]
+    reasoning: [no_unbounded_recursion, no_unverified_self_modification, no_unsupported_certainty, preserve_conflicting_evidence]
+    memory: [append_only_by_default, retain_source_identifiers, distinguish_fact_hypothesis_and_opinion]
+    security: [least_privilege, allowlisted_tools, validate_external_inputs, require_approval_for_sensitive_actions]
+    output: {maximum_response_tokens: 1200, maximum_observations: 20, maximum_actions: 5, maximum_uncertainties: 10, require_structured_output: true}
+  fallback_behavior:
+    missing_sensor: MARK_UNAVAILABLE
+    missing_source: MARK_UNVERIFIED
+    reasoning_disagreement: RETURN_CONFLICT
+    invalid_memory: REJECT_WRITE
+    unauthorized_action: BLOCK
+    output_validation_failure: REJECT_AND_REGENERATE_ONCE
+  experimental_reference_values:
+    status: USER_SUPPLIED_NOT_VERIFIED_NOT_RUNTIME_PARAMETERS
+    values:
+      best_optical_microdisk_diameter: {value: 10, unit: micrometre}
+      mechanical_optical_gap: {value: 100, unit: nm}
+      displacement_noise_floor: {value: 7, unit: fm/sqrt(Hz)}
+      angular_displacement_noise_floor: {value: 4, unit: nrad/sqrt(Hz)}
+      torque_sensitivity: {value: 4e-20, unit: N*m/sqrt(Hz)}
+      mechanical_Q_vacuum_approx: {value: 4000, unit: dimensionless}
+      mechanical_Q_air_approx: {value: 150, unit: dimensionless}
+      optical_power_max: {value: 20, unit: microW}
+      vacuum_pressure_approx: {value: 1e-6, unit: torr}
