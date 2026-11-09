@@ -2,6 +2,7 @@
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Optional
+from entity.evidence import validate_evidence_class
 
 DATA_KINDS = {"hardware", "simulation", "user_supplied", "derived"}
 QUALITIES = {"valid", "degraded", "missing", "simulated", "unknown"}
@@ -17,12 +18,10 @@ class Observation:
     data_kind: str
     provenance: Optional[str]
     unit: Optional[str] = None
+    evidence_class: str = "E4"
 
     def to_dict(self):
-        return {"source": self.source, "type": self.type, "value": self.value,
-                "timestamp": self.timestamp, "confidence": self.confidence,
-                "measurement_quality": self.measurement_quality,
-                "data_kind": self.data_kind, "provenance": self.provenance, "unit": self.unit}
+        return {"source": self.source, "type": self.type, "value": self.value, "timestamp": self.timestamp, "confidence": self.confidence, "measurement_quality": self.measurement_quality, "data_kind": self.data_kind, "provenance": self.provenance, "unit": self.unit, "evidence_class": self.evidence_class}
 
 
 def normalize_observation(data):
@@ -42,16 +41,17 @@ def normalize_observation(data):
     confidence = data["confidence"]
     if isinstance(confidence, bool) or not isinstance(confidence, (int, float)) or not 0 <= confidence <= 1:
         raise ValueError("confidence must be a number in [0, 1]")
-    if data["data_kind"] not in DATA_KINDS:
-        raise ValueError("unsupported data_kind")
-    if data["measurement_quality"] not in QUALITIES:
-        raise ValueError("unsupported measurement_quality")
+    if data["data_kind"] not in DATA_KINDS or data["measurement_quality"] not in QUALITIES:
+        raise ValueError("unsupported data kind or quality")
     if data["data_kind"] == "simulation" and data["measurement_quality"] not in {"simulated", "unknown"}:
         raise ValueError("simulation data must be marked simulated or unknown")
+    evidence = validate_evidence_class(data.get("evidence_class", "E5" if data["data_kind"] == "simulation" else "E4"), data["data_kind"])
     provenance = data["provenance"]
     if provenance is not None and (not isinstance(provenance, str) or len(provenance) > 512):
         raise ValueError("provenance must be null or a string up to 512 characters")
+    if data["data_kind"] == "hardware" and evidence is EvidenceClass.E1 and not provenance:
+        raise ValueError("E1 experimental evidence requires a source provenance reference")
     unit = data.get("unit")
     if unit is not None and (not isinstance(unit, str) or len(unit) > 32):
         raise ValueError("unit must be null or a string up to 32 characters")
-    return Observation(data["source"], data["type"], data["value"], data["timestamp"], float(confidence), data["measurement_quality"], data["data_kind"], provenance, unit)
+    return Observation(data["source"], data["type"], data["value"], data["timestamp"], float(confidence), data["measurement_quality"], data["data_kind"], provenance, unit, evidence.value)
