@@ -1,50 +1,69 @@
-# webgpu-sanbox-backroom
+# WebGPU Backroom · LFM2 AI Entity
 
-This repository contains a browser-side WebGPU AI agent prototype for Google Colab. It is intentionally conservative: the browser performs model inference locally, while the Python runtime remains the orchestration and tool layer.
+A Colab CPU-runtime control room with browser-local model inference. The notebook presents a dark “Backroom” console for an AI entity: Transformers.js + ONNX Runtime Web runs the model on the user's GPU through WebGPU; Colab Python validates tool calls and provides safe tools and session memory.
 
-## Quick start
+## Launch
 
-1. Open the notebook in Google Colab.
-2. Run the cells in order.
-3. Click `Load Model` in the browser UI.
-4. Enter a task and press `Run Loop`.
-5. If the browser has no WebGPU support, the UI will display a clear error and stop.
+1. Open [`webgpu_ai_loop.ipynb`](webgpu_ai_loop.ipynb) in Google Colab (or upload it).
+2. Select a CPU runtime; no CUDA setup is required.
+3. Run cells 1–7 in order.
+4. In the console click **Load model**. This is explicit; opening the notebook does not download model weights.
+5. Enter a task and click **Run Loop**.
+6. Use **Diagnostics** for browser/provider/callback checks.
 
-## Files
+Use a current desktop Chrome or Edge with hardware acceleration. The UI does not switch to WASM/CPU if WebGPU fails. The bridge uses Colab's `google.colab.kernel.invokeFunction` and registered `output.register_callback` callbacks; it only works in Colab's notebook frontend.
 
-- `webgpu_ai_loop.ipynb` — main Google Colab notebook.
-- `agent_runtime.py` — shared Python runtime for tool validation and memory.
-- `tests/test_agent.py` — agent loop tests.
-- `tests/test_tools.py` — tool and validation tests.
-- `docs/ARCHITECTURE.md` — architecture overview.
+## Architecture
 
-## Model compatibility and defaults
+```mermaid
+flowchart LR
+  U[Task / Backroom UI] --> B[Browser WebGPU check]
+  B --> T[Transformers.js]
+  T --> O[ONNX Runtime Web · WebGPU]
+  O --> M[LFM2 ONNX candidate]
+  M --> G[Generate one response]
+  G -->|structured event| C[Colab invokeFunction bridge]
+  C --> P[Python step controller]
+  P --> R[Validated tool registry]
+  R --> X[Safe calculator]
+  R --> S[Session memory]
+  X -->|JSON result| C
+  S -->|JSON result| C
+  C -->|next context| G
+  G --> F[FINAL response]
+```
 
-Default model:
-- `LiquidAI/LFM2-8B-A1B-ONNX`
+The browser must generate because the weights and inference are local to the browser GPU. The controller callback in Python enforces step order/limits and owns tool execution. Conversation is browser run state; memory is Python runtime state.
 
-Small fallback:
-- `LiquidAI/LFM2-1.2B-ONNX`
+## Models and compatibility
 
-These model IDs are intentionally treated as candidates that must be validated at runtime. The browser implementation checks for WebGPU support and attempts to load the selected model through Transformers.js. There is no hidden fallback to unsupported execution providers. If the selected Hub configuration cannot be loaded, the UI surfaces the diagnostic message and stops.
+The notebook defaults to the requested 8B-A1B ONNX model and offers a 1.2B candidate. Candidate Hub IDs are `onnx-community/LFM2-8B-A1B-ONNX` and `onnx-community/LFM2-1.2B-ONNX`. The originally suggested `LiquidAI/LFM2-8B-A1B-ONNX` and `LiquidAI/LFM2-1.2B-ONNX` IDs are not used as assumed aliases. ONNX format alone does not guarantee Transformers.js compatibility: the repo must expose compatible config/tokenizer/graph/quantized artifacts and the pinned Transformers.js pipeline must recognize the architecture. Runtime load is therefore explicit and surfaced as a diagnostic, not claimed as browser-verified here. Test the 1.2B model first; 8B may exceed browser GPU memory.
 
-## Known limitations
+Transformers.js version is pinned to 3.7.6. ORT Web is supplied through the pinned Transformers.js package; loading a separate ORT runtime can create duplicate/incompatible WASM/WebGPU backends. Runtime explicitly requests `device: 'webgpu'` and does not fall back. `requirements.txt` contains only Python test/runtime dependencies.
 
-- Real WebGPU inference depends on a supported browser and GPU driver.
-- Transformers.js compatibility changes over time; use the pinned `TJS_VERSION` in the notebook.
-- The browser is not a secure sandbox; Python execution is kept disabled by default.
-- Large models may require substantial browser memory and download time.
+## Security and memory
+
+- Calculator parses a constrained expression AST and rejects arbitrary code, attributes, and imports.
+- Model output is untrusted. Only recognized JSON tool calls can reach the small allowlist.
+- Arbitrary Python execution is disabled; the optional interface refuses execution and is not described as a secure sandbox.
+- No secrets or API keys are passed into browser JS.
+- Memories persist only for the current Python runtime session. They are not permanent storage. Clearing requires `clear_memories(confirmed=True)`.
+
+## Tests
+
+Notebook cell 7 runs deterministic mock tests without loading a model. Repository tests can be run with:
+
+```bash
+python -m pip install -r requirements.txt
+python -m pytest -q
+```
+
+These tests do not establish that a real browser/GPU can load a particular Hub model. Real WebGPU inference must be validated in a supported browser/device.
 
 ## Troubleshooting
 
-- No WebGPU: use desktop Chrome or Edge, not Safari or unsupported browsers.
-- Model download fails: verify the Hub model ID and a compatible Transformers.js wheel.
-- Browser memory exhausted: unload the model, restart, or switch to the lighter fallback.
-- Tool errors: check the JSON tool-call format and the limit of safe operations.
-
-## Security model
-
-- Python tool execution is disabled by default.
-- Model-generated tool calls are treated as untrusted input.
-- The notebook never exposes secrets or API keys to browser JavaScript.
-- Unrestricted filesystem access is not granted through the agent tools.
+- **No WebGPU / adapter:** current desktop Chrome/Edge, hardware acceleration, compatible GPU driver, and secure context are needed. Do not expect CPU fallback.
+- **Model/config/tokenizer error:** confirm the candidate model repository artifacts and Transformers.js compatibility; try 1.2B and check Diagnostics.
+- **GPU out-of-memory:** unload, close GPU-heavy tabs, reload the page/browser, or select 1.2B. WebGPU allocations can remain until refresh.
+- **No callback bridge:** execute in Google Colab rather than a local notebook frontend, and run callback-registration cell 4.
+- **Slow/large download:** model weights download only after clicking Load model; browser cache may help subsequent loads.

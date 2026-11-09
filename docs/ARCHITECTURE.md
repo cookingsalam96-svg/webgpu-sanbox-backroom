@@ -1,40 +1,42 @@
-# WebGPU AI agent architecture
+# Architecture: WebGPU Backroom and AI Entity
 
 ```mermaid
 flowchart LR
-    A[Google Colab CPU Runtime] --> B[Python Agent Controller]
-    B --> C[Tool Registry]
-    C --> D[Calculator]
-    C --> E[Optional Python Tool]
-    C --> F[Memory Store]
-
-    G[User Task] --> H[Colab Browser Interface]
-    H --> I[WebGPU Detection]
-    I --> J[Transformers.js]
-    J --> K[LFM2 Model]
-    K --> L[Token Generation]
-    L --> M[FINAL Response]
-
-    B --> N[Colab Communication Bridge]
-    N --> H
-    B --> O[Tool Results]
-    O --> H
+  subgraph Browser[User computer · browser]
+    UI[Dark Backroom console / entity status]
+    GPU[WebGPU capability + adapter]
+    TJ[Transformers.js]
+    ORT[Bundled ONNX Runtime Web · WebGPU]
+    LFM[LFM2 ONNX candidate]
+    UI --> GPU --> TJ --> ORT --> LFM
+    LFM --> GEN[One-step token generation]
+  end
+  subgraph Colab[Google Colab · CPU runtime]
+    CB[Registered Python callbacks]
+    CTRL[Step/order controller]
+    TOOLS[Allowlisted tool registry]
+    CALC[Safe AST calculator]
+    MEM[Timestamped session memory]
+    CB --> CTRL --> TOOLS
+    TOOLS --> CALC
+    TOOLS --> MEM
+  end
+  TASK[User task] --> UI
+  GEN -->|google.colab.kernel.invokeFunction JSON event| CB
+  CB -->|JSON result / continue| GEN
+  GEN --> FINAL[FINAL answer / stop]
 ```
 
-## Components
+## Trust boundary and control flow
 
-- Python Agent Controller: owns step limits, memory, and tool execution.
-- Tool Registry: validates and routes calls to safe Python routines.
-- Colab Communication Bridge: uses `google.colab.kernel.invokeFunction` to move data between browser and Python.
-- Browser Inference Layer: loads the model locally with WebGPU and runs generation in the browser.
-- Memory Store: session-only persistence; separate from conversation history.
+Browser inference is asynchronous and must remain in JavaScript. After each model response, the browser sends a JSON event through Colab's supported `google.colab.kernel.invokeFunction` bridge to a Python callback registered with `google.colab.output.register_callback`. Python validates session and step progression, recognizes final/tool/invalid outcomes, executes only allowlisted tools, and returns JSON. Browser appends the tool result to the next model context. Step count is bounded in both browser and Python.
 
-## Trust boundaries
+The notebook does not pretend Python can synchronously pull local browser tokens. Nor does it expose Python runtime secrets to JavaScript. The browser uses explicit WebGPU only; unavailable WebGPU or unsupported model artifacts produce a visible error, never a hidden CPU fallback.
 
-- Browser output is untrusted.
-- Tool calls are structured JSON and must be validated.
-- Python execution remains disabled unless explicitly enabled.
+## AI entity and “Backroom” presentation
 
-## Execution model
+Backroom is the local development console, not an additional inference service. The entity persona/system prompt defines the LFM2 agent. UI reports GPU state, model loading/progress, step count, tool results, memory count, stop/error state. Model loading is user-triggered.
 
-The browser does the heavy inference work while the Python runtime remains lightweight and orchestrative. This preserves Colab compatibility while keeping the model local to the user’s browser.
+## Compatibility caveat
+
+ONNX files do not guarantee Transformers.js compatibility. Model config, tokenizer, graph operators, quantization names, and library architecture support must align. Candidate ONNX Community LFM2 repositories are selected in the notebook; real load remains a runtime validation on target browser/device. The notebook has not been validated against actual WebGPU hardware in this build environment.
