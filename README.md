@@ -1,69 +1,62 @@
-# WebGPU Backroom · LFM2 AI Entity
+# HARDAM Entity V1.1 · WebGPU Backroom
 
-A Colab CPU-runtime control room with browser-local model inference. The notebook presents a dark “Backroom” console for an AI entity: Transformers.js + ONNX Runtime Web runs the model on the user's GPU through WebGPU; Colab Python validates tool calls and provides safe tools and session memory.
+This repository separates three systems and joins them only through explicit contracts:
 
-## Launch
+1. **Physical reference** — optomechanical concepts from the user-supplied Kim et al. paper summary. The paper concerns physics, not AI; source details and reported values remain unverified until source pages are checked.
+2. **HARDAM cognitive entity** — sensor normalization, attention ranking, Dreamer proposal, Critic review, provenance-bearing memory, authorization gate, and bounded output.
+3. **Back Room environment** — browser/game UI, entity visualization, environment observations, and interaction. A complete Three.js/WebGPU game is not currently included in this repository.
 
-1. Open [`webgpu_ai_loop.ipynb`](webgpu_ai_loop.ipynb) in Google Colab (or upload it).
-2. Select a CPU runtime; no CUDA setup is required.
-3. Run cells 1–7 in order.
-4. In the console click **Load model**. This is explicit; opening the notebook does not download model weights.
-5. Enter a task and click **Run Loop**.
-6. Use **Diagnostics** for browser/provider/callback checks.
+The Python demo simulates an illustrative torsional signal and passes it through the real repository entity contracts. It does not need a GPU, does not download a model, and does not claim to reproduce Kim et al.'s device.
 
-Use a current desktop Chrome or Edge with hardware acceleration. The UI does not switch to WASM/CPU if WebGPU fails. The bridge uses Colab's `google.colab.kernel.invokeFunction` and registered `output.register_callback` callbacks; it only works in Colab's notebook frontend.
+## Downloadables
 
-## Architecture
+- [Full architecture and Colab guide](docs/HARDAM_ENTITY_V1_1_README.md)
+- [Colab simulation script](colab_entity_demo.py)
+- [Evidence class definitions](schemas/evidence_classes.yaml)
+- [Architecture overview](docs/entity_v11.md)
 
-```mermaid
-flowchart LR
-  U[Task / Backroom UI] --> B[Browser WebGPU check]
-  B --> T[Transformers.js]
-  T --> O[ONNX Runtime Web · WebGPU]
-  O --> M[LFM2 ONNX candidate]
-  M --> G[Generate one response]
-  G -->|structured event| C[Colab invokeFunction bridge]
-  C --> P[Python step controller]
-  P --> R[Validated tool registry]
-  R --> X[Safe calculator]
-  R --> S[Session memory]
-  X -->|JSON result| C
-  S -->|JSON result| C
-  C -->|next context| G
-  G --> F[FINAL response]
+## Test the entity in Google Colab (CPU runtime)
+
+Run these cells in order. The script clones this repo if not already present, simulates a damped torsion-like signal, labels all generated observations E5, routes them through the repository's `ResonatorBridge` and `EntityRuntime`, validates the output, and optionally writes append-only JSONL memory under `/content`.
+
+```python
+!git clone --depth 1 https://github.com/cookingsalam96-svg/webgpu-sanbox-backroom.git /content/hardam
+%cd /content/hardam
+!python colab_entity_demo.py --steps 8 --remember
 ```
 
-The browser must generate because the weights and inference are local to the browser GPU. The controller callback in Python enforces step order/limits and owns tool execution. Conversation is browser run state; memory is Python runtime state.
+Then inspect the JSONL records:
 
-## Models and compatibility
+```python
+from pathlib import Path
+print(Path('/content/hardam_entity_memory.jsonl').read_text())
+```
 
-The notebook defaults to the requested 8B-A1B ONNX model and offers a 1.2B candidate. Candidate Hub IDs are `onnx-community/LFM2-8B-A1B-ONNX` and `onnx-community/LFM2-1.2B-ONNX`. The originally suggested `LiquidAI/LFM2-8B-A1B-ONNX` and `LiquidAI/LFM2-1.2B-ONNX` IDs are not used as assumed aliases. ONNX format alone does not guarantee Transformers.js compatibility: the repo must expose compatible config/tokenizer/graph/quantized artifacts and the pinned Transformers.js pipeline must recognize the architecture. Runtime load is therefore explicit and surfaced as a diagnostic, not claimed as browser-verified here. Test the 1.2B model first; 8B may exceed browser GPU memory.
+The script can also be downloaded and uploaded directly to Colab. Its `--repo-dir` option points to a checkout if you have already cloned it.
 
-Transformers.js version is pinned to 3.7.6. ORT Web is supplied through the pinned Transformers.js package; loading a separate ORT runtime can create duplicate/incompatible WASM/WebGPU backends. Runtime explicitly requests `device: 'webgpu'` and does not fall back. `requirements.txt` contains only Python test/runtime dependencies.
+## Evidence labels
 
-## Security and memory
-
-- Calculator parses a constrained expression AST and rejects arbitrary code, attributes, and imports.
-- Model output is untrusted. Only recognized JSON tool calls can reach the small allowlist.
-- Arbitrary Python execution is disabled; the optional interface refuses execution and is not described as a secure sandbox.
-- No secrets or API keys are passed into browser JS.
-- Memories persist only for the current Python runtime session. They are not permanent storage. Clearing requires `clear_memories(confirmed=True)`.
+- **E1** experimental evidence with a page-located source citation. The format is checked; the citation's truth/support still needs human/source verification.
+- **E2** mathematical derivation with reproducible provenance.
+- **E3** engineering analogy, e.g. mapping resonator phase to 72 names.
+- **E4** unverified hypothesis, including persona/mythology treated as factual claims.
+- **E5** software-generated simulation, never a hardware measurement.
 
 ## Tests
 
-Notebook cell 7 runs deterministic mock tests without loading a model. Repository tests can be run with:
+From the repository root:
 
 ```bash
 python -m pip install -r requirements.txt
 python -m pytest -q
 ```
 
-These tests do not establish that a real browser/GPU can load a particular Hub model. Real WebGPU inference must be validated in a supported browser/device.
+The repository test suite has not been run in this environment. Python simulation does not validate browser WebGPU, LFM2 model compatibility, physical hardware, or a full Back Room renderer. The separate `webgpu_ai_loop.ipynb` remains a candidate browser inference demo; model loading must be explicitly tested on a supported browser/GPU.
 
-## Troubleshooting
+## Safety and limitations
 
-- **No WebGPU / adapter:** current desktop Chrome/Edge, hardware acceleration, compatible GPU driver, and secure context are needed. Do not expect CPU fallback.
-- **Model/config/tokenizer error:** confirm the candidate model repository artifacts and Transformers.js compatibility; try 1.2B and check Diagnostics.
-- **GPU out-of-memory:** unload, close GPU-heavy tabs, reload the page/browser, or select 1.2B. WebGPU allocations can remain until refresh.
-- **No callback bridge:** execute in Google Colab rather than a local notebook frontend, and run callback-registration cell 4.
-- **Slow/large download:** model weights download only after clicking Load model; browser cache may help subsequent loads.
+- The demo uses deterministic, illustrative software data, not a sensor or verified optomechanical solver.
+- Simulated observations carry `data_kind=simulation`, `measurement_quality=simulated`, and `evidence_class=E5`.
+- Tool/action boundaries are allowlisted and fail closed. Arbitrary Python model-generated code is not executed.
+- Memory is append-only JSONL, not cryptographically tamper-proof; protect the Colab runtime and file.
+- No secrets are passed to browser code.

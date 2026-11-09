@@ -1,7 +1,6 @@
-"""V1.1 evidence, dual-brain, memory persistence, simulator and runtime contracts."""
+"""V1.1 tests; E1 now uses page-located citation provenance."""
 import json
 from datetime import datetime, timezone
-
 import pytest
 from entity.evidence import validate_evidence_class
 from entity.sensor.sensor_interface import normalize_observation
@@ -12,7 +11,7 @@ from entity.memory.memory_manager import MemoryManager
 from entity.validation.output_validator import validate_output
 
 
-def obs(source="sensor-a", value=20, evidence="E1", kind="hardware", provenance="device-log:42"):
+def obs(source="sensor-a", value=20, evidence="E1", kind="hardware", provenance="paper.pdf#page=4"):
     return normalize_observation({"source":source,"type":"temperature","value":value,"timestamp":datetime.now(timezone.utc).isoformat(),"confidence":0.9,"measurement_quality":"valid","data_kind":kind,"evidence_class":evidence,"provenance":provenance,"unit":"C"})
 
 
@@ -23,8 +22,7 @@ def test_evidence_class_rules():
 
 
 def test_dreamer_critic_detects_contradictions():
-    a,b=obs(value=20),obs(source="sensor-b",value=22,provenance="device-log:43")
-    # Any Dreamer proposal remains subject to independent deterministic critic checks.
+    a,b=obs(value=20),obs(source="sensor-b",value=22,provenance="paper.pdf#page=5")
     proposal=Proposal("20 C",["sensor-a"],0.8,[],[],claims=[])
     assert critic_review(proposal,[a,b])["status"] == "CONFLICT"
 
